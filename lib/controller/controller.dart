@@ -32,7 +32,6 @@ class GithubProvider extends ChangeNotifier {
   List<dynamic> get getDatas => github;
   bool get isEnd => endOfPage;
 
-
 //fuction to fetch the data from the api
   Future<void> fetchData() async {
     try {
@@ -48,7 +47,8 @@ class GithubProvider extends ChangeNotifier {
         if (result['items'] is List) {
           List<dynamic> items = result['items'];
           if (items.isNotEmpty) {
-            github.addAll(items.map((item) => Item.fromJson(item)));//add to list 
+            github
+                .addAll(items.map((item) => Item.fromJson(item)));//add to list
             currentPage++; // Increment the current page
             notifyListeners();
             saveToLocalStorage(items); // Save to local storage
@@ -68,7 +68,6 @@ class GithubProvider extends ChangeNotifier {
     }
   }
 
-
 //function to load data from local storage
 
   Future<void> loadFromLocalStorage() async {
@@ -76,7 +75,7 @@ class GithubProvider extends ChangeNotifier {
       final List<Map<String, dynamic>> data = await db.query('git');
       //if data not empty then do
       if (data.isNotEmpty) {
-        github.clear();    //clear the list then add to the list
+        github.clear(); //clear the list then add to the list
         github.addAll(
           data.map(
             (item) => Item(
@@ -100,15 +99,13 @@ class GithubProvider extends ChangeNotifier {
         );
         notifyListeners(); //update the ui
 
-        // for (var item in github) {
-        //   print(
-        //       'ID: ${item.id}, Name: ${item.name}, Description: ${item.description},star: ${item.star}');
-        // }
+       
       }
     } catch (e) {
       print('Error loading data from local storage: $e');
     }
   }
+
 //save the data to local storage
   saveToLocalStorage(List<dynamic> items) async {
     try {
@@ -118,7 +115,7 @@ class GithubProvider extends ChangeNotifier {
             await txn.rawQuery('SELECT MAX(id) as lastId FROM git');
         lastUsedId = result[0]['lastId'] ?? 0;
 
-        int newId = lastUsedId + 1;//updating the last used id
+        int newId = lastUsedId + 1; //updating the last used id
         lastUsedId = newId;
         //storing each of the data in to local storage
         for (var item in items) {
@@ -130,10 +127,7 @@ class GithubProvider extends ChangeNotifier {
           });
         }
       });
-      // for (var item in github) {
-      //   print(
-      //       'ID: ${item.id}, Name: ${item.name}, Description: ${item.description},star: ${item.star}');
-      // }
+     
     } catch (e) {
       print('Error saving data to local storage: $e');
     }
