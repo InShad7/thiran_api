@@ -17,7 +17,12 @@ class GithubNotifier extends StateNotifier<GithubState> {
   GithubNotifier()
       : super(
           GithubState(
-              github: [], currentPage: 1, endOfPage: false, isThirty: false),
+            github: [],
+            currentPage: 1,
+            endOfPage: false,
+            isThirty: false,
+            hasConnection: true,
+          ),
         );
 
   //get the date by days 30 or 60
@@ -30,13 +35,17 @@ class GithubNotifier extends StateNotifier<GithubState> {
 
   // //change the number of days by 30 or 60
   void changeNumberOfDays() {
-    state = state.copyWith(
-      isThirty: !state.isThirty,
-      github: [],
-      currentPage: 1,
-      endOfPage: false,
-    );
-    fetchData();
+    if (state.hasConnection) {
+      state = state.copyWith(
+        isThirty: !state.isThirty,
+        github: [],
+        currentPage: 1,
+        endOfPage: false,
+      );
+      fetchData();
+    } else {
+      Fluttertoast.showToast(msg: "Please turn on Mobile data or Wifi");
+    }
   }
 
   //fuction to fetch the data from the api
@@ -138,9 +147,12 @@ class GithubNotifier extends StateNotifier<GithubState> {
     final connectivityResult =
         await InternetConnectionChecker().connectionStatus;
     if (connectivityResult == InternetConnectionStatus.connected) {
+      state = state.copyWith(hasConnection: true);
       return await fetchData();
     } else {
-      Fluttertoast.showToast(msg: "Oops! please turn on mobile data or wifi");
+      state = state.copyWith(hasConnection: false);
+      Fluttertoast.showToast(msg: "Please turn on Mobile data or Wifi");
+
       return await loadFromLocalStorage();
     }
   }

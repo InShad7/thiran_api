@@ -19,15 +19,13 @@ class ItemTile extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          repo.owner.avatarUrl == ''
-              ? const CircleAvatar(
-                  radius: 28,
-                  backgroundImage: AssetImage('assets/dp.jpg'),
-                )
-              : CircleAvatar(
-                  radius: 28,
-                  backgroundImage: NetworkImage(repo.owner.avatarUrl),
-                ),
+          CircleAvatar(
+            backgroundColor: white,
+            radius: 28,
+            backgroundImage: repo.owner.avatarUrl == ''
+                ? const AssetImage('assets/dp.jpg')
+                : NetworkImage(repo.owner.avatarUrl) as ImageProvider,
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:provider/provider.dart';
-import 'package:thiran2/controller/controller.dart';
 import 'package:thiran2/controller/db/db_fun.dart';
 
 import 'view/home/home_screen.dart';
@@ -19,8 +17,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      // create: (context) => GithubProvider()
-
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
