@@ -31,8 +31,11 @@ dependencies:
   cupertino_icons: ^1.0.2
   flutter:
     sdk: flutter
+  flutter_hooks: ^0.20.0
+  flutter_riverpod: ^2.3.6
   fluttertoast: null
   http: null
+  internet_connection_checker: ^1.0.0+1
   intl: ^0.18.1
   provider: ^6.0.5
   sqflite: null

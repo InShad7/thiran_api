@@ -1,116 +1,114 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:intl/intl.dart';
-import 'package:thiran2/model/model.dart';
+import '/model/model.dart';
 import 'package:http/http.dart' as http;
-
+import '/model/riverpod/riverpod_model.dart';
 import 'db/db_fun.dart';
 
-class GithubProvider extends ChangeNotifier {
-  List<dynamic> github = [];
-  int currentPage = 1;
-  bool endOfPage = false;
-  bool isThirty = false;
+final githubProvider =
+    StateNotifierProvider<GithubNotifier, GithubState>((ref) {
+  return GithubNotifier();
+});
 
-//get the date by days 30 or 60
-  getNumberOfDays() {
+class GithubNotifier extends StateNotifier<GithubState> {
+  GithubNotifier()
+      : super(
+          GithubState(
+              github: [], currentPage: 1, endOfPage: false, isThirty: false),
+        );
+
+  //get the date by days 30 or 60
+  String getNumberOfDays() {
     final now = DateTime.now();
-    final daysAgo = isThirty ? 30 : 60;
+    final daysAgo = state.isThirty ? 30 : 60;
     final days = now.subtract(Duration(days: daysAgo));
     return DateFormat('yyyy-MM-dd').format(days);
   }
 
-//change the number of days by 30 or 60
-  changeNumberOfDays() {
-    isThirty = !isThirty;
-    github.clear();
-    currentPage = 1;
+  // //change the number of days by 30 or 60
+  void changeNumberOfDays() {
+    state = state.copyWith(
+      isThirty: !state.isThirty,
+      github: [],
+      currentPage: 1,
+      endOfPage: false,
+    );
     fetchData();
   }
 
-//calling the function
-  List<dynamic> get getDatas => github;
-  bool get isEnd => endOfPage;
-
-
-//fuction to fetch the data from the api
+  //fuction to fetch the data from the api
   Future<void> fetchData() async {
+    print('inside fetch data');
     try {
       final day = getNumberOfDays();
-      if (endOfPage) return;
+
       final url =
-          'https://api.github.com/search/repositories?q=created:%3E$day&sort=stars&order=desc&page=${currentPage.toString()}&per_page=15';
+          'https://api.github.com/search/repositories?q=created:%3E$day&sort=stars&order=desc&page=${state.currentPage.toString()}&per_page=10';
 
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        //if successful then do this
         var result = json.decode(response.body);
         if (result['items'] is List) {
           List<dynamic> items = result['items'];
           if (items.isNotEmpty) {
-            github.addAll(items.map((item) => Item.fromJson(item)));//add to list 
-            currentPage++; // Increment the current page
-            notifyListeners();
-            saveToLocalStorage(items); // Save to local storage
+            state = state.copyWith(
+              github: [
+                ...state.github, //adding the existing list
+                ...items
+                    .map((item) => Item.fromJson(item)) //adding the new list
+              ],
+              currentPage: state.currentPage + 1,
+            );
+            saveToLocalStorage(items);
           } else {
-            endOfPage = true;
+            state = state.copyWith(endOfPage: true);
           }
         }
       } else {
-        // if API call fails, load data from local storage
         print('API call failed: ${response.statusCode}');
-        await loadFromLocalStorage();
       }
     } catch (e) {
       print('Error fetching data: $e');
-      // if there's an error, load data from local storage
-      await loadFromLocalStorage();
     }
   }
 
-
 //function to load data from local storage
-
   Future<void> loadFromLocalStorage() async {
     try {
       final List<Map<String, dynamic>> data = await db.query('git');
       //if data not empty then do
       if (data.isNotEmpty) {
-        github.clear();    //clear the list then add to the list
-        github.addAll(
-          data.map(
-            (item) => Item(
-              id: item['id'],
-              name: item['name'],
-              fullName: '',
-              private: false,
-              owner: Owner(
-                  login: '',
-                  id: 0,
-                  nodeId: '',
-                  avatarUrl: '',
-                  url: '',
-                  starredUrl: ''),
-              htmlUrl: '',
-              description: item['description'] ?? 'No description',
-              size: 0,
-              stargazersCount: item['star'] ?? 0,
-            ),
-          ),
-        );
-        notifyListeners(); //update the ui
-
-        // for (var item in github) {
-        //   print(
-        //       'ID: ${item.id}, Name: ${item.name}, Description: ${item.description},star: ${item.star}');
-        // }
+        state = state.copyWith(
+            github: data
+                .map((item) => Item(
+                      id: item['id'],
+                      name: item['name'],
+                      fullName: '',
+                      private: false,
+                      owner: Owner(
+                          login: '',
+                          id: 0,
+                          nodeId: '',
+                          avatarUrl: '',
+                          url: '',
+                          starredUrl: ''),
+                      htmlUrl: '',
+                      description: item['description'] ?? 'No description',
+                      size: 0,
+                      stargazersCount: item['star'] ?? 0,
+                    ))
+                .toList());
       }
     } catch (e) {
       print('Error loading data from local storage: $e');
     }
   }
-//save the data to local storage
-  saveToLocalStorage(List<dynamic> items) async {
+
+  //save the data to local storage
+  Future<void> saveToLocalStorage(List<dynamic> items) async {
     try {
       await db.transaction((txn) async {
         int lastUsedId = 0;
@@ -118,7 +116,7 @@ class GithubProvider extends ChangeNotifier {
             await txn.rawQuery('SELECT MAX(id) as lastId FROM git');
         lastUsedId = result[0]['lastId'] ?? 0;
 
-        int newId = lastUsedId + 1;//updating the last used id
+        int newId = lastUsedId + 1; //updating the last used id
         lastUsedId = newId;
         //storing each of the data in to local storage
         for (var item in items) {
@@ -130,12 +128,20 @@ class GithubProvider extends ChangeNotifier {
           });
         }
       });
-      // for (var item in github) {
-      //   print(
-      //       'ID: ${item.id}, Name: ${item.name}, Description: ${item.description},star: ${item.star}');
-      // }
     } catch (e) {
       print('Error saving data to local storage: $e');
+    }
+  }
+
+  //  fun to check the internet is connected or not
+  fetchDataIfConnected() async {
+    final connectivityResult =
+        await InternetConnectionChecker().connectionStatus;
+    if (connectivityResult == InternetConnectionStatus.connected) {
+      return await fetchData();
+    } else {
+      Fluttertoast.showToast(msg: "Oops! please turn on mobile data or wifi");
+      return await loadFromLocalStorage();
     }
   }
 }
