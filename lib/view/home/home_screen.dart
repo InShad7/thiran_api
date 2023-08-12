@@ -38,8 +38,12 @@ class HomeScreen extends StatelessWidget {
                     return ItemTile(repo: repository);
                   } else {
                     if (!githubState.endOfPage) {
-                      notifier.fetchData();
-                      return const Center(child: CircularProgressIndicator());
+                      if (githubState.hasConnection) {
+                        notifier.fetchData();
+                        return const Center(child: CircularProgressIndicator());
+                      } else {
+                        return const SizedBox();
+                      }
                     } else {
                       Fluttertoast.showToast(msg: 'No more repository found');
                       return const Center(
@@ -52,8 +56,12 @@ class HomeScreen extends StatelessWidget {
             } else if (repo == null) {
               return const Center(child: Text('No data found'));
             } else {
-              notifier.fetchData();
-              return const Center(child: CircularProgressIndicator());
+              if (githubState.hasConnection) {
+                notifier.fetchData();
+                return const Center(child: CircularProgressIndicator());
+              } else {
+                return const SizedBox();
+              }
             }
           }
         },

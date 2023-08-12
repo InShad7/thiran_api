@@ -21,9 +21,10 @@ class GithubNotifier extends StateNotifier<GithubState> {
             currentPage: 1,
             endOfPage: false,
             isThirty: false,
-            hasConnection: true,
+            hasConnection: false,
           ),
         );
+  DatabaseManager dbManager = DatabaseManager(); //instance of Database
 
   //get the date by days 30 or 60
   String getNumberOfDays() {
@@ -43,117 +44,90 @@ class GithubNotifier extends StateNotifier<GithubState> {
         endOfPage: false,
       );
       fetchData();
+      Fluttertoast.showToast(
+        msg: state.isThirty ? 'updated to 30 days' : 'updated to 60 days',
+      );
     } else {
       Fluttertoast.showToast(msg: "Please turn on Mobile data or Wifi");
     }
   }
 
-  //fuction to fetch the data from the api
+//fun to fetch data from api 
   Future<void> fetchData() async {
-    print('inside fetch data');
-    try {
-      final day = getNumberOfDays();
+    print("inside fetchData");
 
-      final url =
-          'https://api.github.com/search/repositories?q=created:%3E$day&sort=stars&order=desc&page=${state.currentPage.toString()}&per_page=10';
+    if (state.hasConnection) {
+      try {
+        final day = getNumberOfDays();
 
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        var result = json.decode(response.body);
-        if (result['items'] is List) {
-          List<dynamic> items = result['items'];
-          if (items.isNotEmpty) {
-            state = state.copyWith(
-              github: [
-                ...state.github, //adding the existing list
-                ...items
-                    .map((item) => Item.fromJson(item)) //adding the new list
-              ],
-              currentPage: state.currentPage + 1,
-            );
-            saveToLocalStorage(items);
-          } else {
-            state = state.copyWith(endOfPage: true);
+        final url =
+            'https://api.github.com/search/repositories?q=created:%3E$day&sort=stars&order=desc&page=${state.currentPage.toString()}&per_page=10';
+
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          var result = json.decode(response.body);
+          if (result['items'] is List) {
+            List<dynamic> items = result['items'];
+            if (items.isNotEmpty) {
+              state = state.copyWith(
+                github: [
+                  ...state.github, //adding the existing list
+                  ...items
+                      .map((item) => Item.fromJson(item)) //adding the new list
+                ],
+                currentPage: state.currentPage + 1,
+              );
+             
+              await dbManager.initDataBase(); //initialize the db
+              await dbManager.saveToLocalStorage(items); //save to localstorage
+            } else {
+              state = state.copyWith(
+                  endOfPage: true); //if items are empty then endofpage
+            }
           }
+        } else {
+          print('API call failed: ${response.statusCode}');
+          await fetchDataIfConnected();
         }
-      } else {
-        print('API call failed: ${response.statusCode}');
+      } catch (e) {
+        print('Error fetching data: $e');
+        await fetchDataIfConnected();
       }
-    } catch (e) {
-      print('Error fetching data: $e');
+    } else {
+      // load data from local storage when not connected to the internet
+      await loadFromLocalStorage();
     }
   }
 
-//function to load data from local storage
+  // function to load data from local storage
   Future<void> loadFromLocalStorage() async {
     try {
-      final List<Map<String, dynamic>> data = await db.query('git');
-      //if data not empty then do
-      if (data.isNotEmpty) {
+      //load data from local storage from db class
+      await dbManager.initDataBase();
+      final List<Item> items = await dbManager.loadFromLocalStorage();
+      if (items.isNotEmpty) {
         state = state.copyWith(
-            github: data
-                .map((item) => Item(
-                      id: item['id'],
-                      name: item['name'],
-                      fullName: '',
-                      private: false,
-                      owner: Owner(
-                          login: '',
-                          id: 0,
-                          nodeId: '',
-                          avatarUrl: '',
-                          url: '',
-                          starredUrl: ''),
-                      htmlUrl: '',
-                      description: item['description'] ?? 'No description',
-                      size: 0,
-                      stargazersCount: item['star'] ?? 0,
-                    ))
-                .toList());
+          github: items,
+        );
       }
     } catch (e) {
       print('Error loading data from local storage: $e');
     }
   }
 
-  //save the data to local storage
-  Future<void> saveToLocalStorage(List<dynamic> items) async {
-    try {
-      await db.transaction((txn) async {
-        int lastUsedId = 0;
-        List<Map<String, dynamic>> result =
-            await txn.rawQuery('SELECT MAX(id) as lastId FROM git');
-        lastUsedId = result[0]['lastId'] ?? 0;
-
-        int newId = lastUsedId + 1; //updating the last used id
-        lastUsedId = newId;
-        //storing each of the data in to local storage
-        for (var item in items) {
-          await txn.insert('git', {
-            'id': newId++,
-            'name': item['name'],
-            'description': item['description'],
-            'star': item['stargazers_count'],
-          });
-        }
-      });
-    } catch (e) {
-      print('Error saving data to local storage: $e');
-    }
-  }
-
   //  fun to check the internet is connected or not
   fetchDataIfConnected() async {
+    print('fetchIfConnected');
     final connectivityResult =
         await InternetConnectionChecker().connectionStatus;
     if (connectivityResult == InternetConnectionStatus.connected) {
       state = state.copyWith(hasConnection: true);
-      return await fetchData();
+      return true;
     } else {
       state = state.copyWith(hasConnection: false);
+      await loadFromLocalStorage();
       Fluttertoast.showToast(msg: "Please turn on Mobile data or Wifi");
-
-      return await loadFromLocalStorage();
+      return false;
     }
   }
 }

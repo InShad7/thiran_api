@@ -6,7 +6,8 @@ import 'view/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initDataBase();
+  DatabaseManager dbManager = DatabaseManager(); //instance of Database
+  await dbManager.initDataBase(); //initialize data base
   runApp(const MyApp());
 }
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:thiran2/controller/controller.dart';
 import '../../utils/utils.dart';
 
@@ -29,11 +28,7 @@ void alertBox({context}) {
                 onPressed: () async {
                   notifier.changeNumberOfDays();
                   Navigator.pop(context);
-                  Fluttertoast.showToast(
-                    msg: provider.isThirty
-                        ? 'updated to 60 days'
-                        : 'updated to 30 days',
-                  );
+                  
                 },
                 child: Text(
                   provider.isThirty ? '60 days' : '30 days',
