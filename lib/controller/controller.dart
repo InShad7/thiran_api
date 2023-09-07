@@ -52,7 +52,7 @@ class GithubNotifier extends StateNotifier<GithubState> {
     }
   }
 
-//fun to fetch data from api 
+//fun to fetch data from api
   Future<void> fetchData() async {
     print("inside fetchData");
 
@@ -77,7 +77,7 @@ class GithubNotifier extends StateNotifier<GithubState> {
                 ],
                 currentPage: state.currentPage + 1,
               );
-             
+
               await dbManager.initDataBase(); //initialize the db
               await dbManager.saveToLocalStorage(items); //save to localstorage
             } else {
